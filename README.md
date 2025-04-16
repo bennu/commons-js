@@ -42,7 +42,7 @@ console.log(isValidRut('12.345.678-5')); // true
 ### TypeScript / ES Modules
 
 ```typescript
-import { isValidRut, validateRut, formatRut, RutValidationResult } from 'common-js';
+import { isValidRut} from 'common-js';
 
 // Basic validation
 console.log(isValidRut('12.345.678-5')); // true
