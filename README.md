@@ -19,13 +19,13 @@ A TypeScript utility package for validating and formatting Chilean identificatio
 
 ```bash
 # Using npm
-npm install common-js
+npm install @bennu/common-js
 
 # Using yarn
-yarn add common-js
+yarn add @bennu/common-js
 
 # Using pnpm
-pnpm add common-js
+pnpm add @bennu/common-js
 ```
 
 ## 💻 Usage
@@ -33,7 +33,7 @@ pnpm add common-js
 ### JavaScript (CommonJS)
 
 ```javascript
-const { isValidRut } = require('common-js');
+const { isValidRut } = require('@bennu/common-js');
 
 // Basic validation
 console.log(isValidRut('12.345.678-5')); // true
@@ -42,7 +42,7 @@ console.log(isValidRut('12.345.678-5')); // true
 ### TypeScript / ES Modules
 
 ```typescript
-import { isValidRut} from 'common-js';
+import { isValidRut} from '@bennu/common-js';
 
 // Basic validation
 console.log(isValidRut('12.345.678-5')); // true
