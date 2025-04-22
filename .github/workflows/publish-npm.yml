@@ -42,11 +42,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build TypeScript
-        run: |
-          npx tsc --target es2018 --module commonjs --declaration --outDir ./dist --strict --esModuleInterop --skipLibCheck --forceConsistentCasingInFileNames src/**/*.ts
-          ls -la dist/
-
       - name: Publish to npm
         run: npm publish --access public
         env:
