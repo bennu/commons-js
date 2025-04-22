@@ -46,28 +46,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify TypeScript configuration
+      - name: Create TypeScript configuration
         run: |
-          if [ ! -f tsconfig.json ]; then
-            echo "Creating tsconfig.json..."
-            echo '{
-              "compilerOptions": {
-                "target": "es2018",
-                "module": "commonjs",
-                "declaration": true,
-                "outDir": "./dist",
-                "strict": true,
-                "esModuleInterop": true,
-                "skipLibCheck": true,
-                "forceConsistentCasingInFileNames": true,
-                "rootDir": "./src"
-              },
-              "include": ["src/**/*"],
-              "exclude": ["node_modules", "dist", "test"]
-            }' > tsconfig.json
-            git add tsconfig.json
-            git commit -m "chore: add tsconfig.json" || echo "No changes to commit"
-          fi
+          echo '{
+            "compilerOptions": {
+              "target": "es2018",
+              "module": "commonjs",
+              "declaration": true,
+              "outDir": "./dist",
+              "strict": true,
+              "esModuleInterop": true,
+              "skipLibCheck": true,
+              "forceConsistentCasingInFileNames": true,
+              "rootDir": "./src"
+            },
+            "include": ["src/**/*"],
+            "exclude": ["node_modules", "dist", "test"]
+          }' > tsconfig.json
+          cat tsconfig.json
+
+      - name: Build TypeScript
+        run: |
+          npx tsc --project tsconfig.json
+          ls -la dist/
 
       - name: Publish to npm
         run: npm publish --access public
