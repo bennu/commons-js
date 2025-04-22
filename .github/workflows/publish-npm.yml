@@ -42,28 +42,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build
-        run: |
-          echo '{
-            "compilerOptions": {
-              "target": "es2018",
-              "module": "commonjs",
-              "declaration": true,
-              "outDir": "./dist",
-              "strict": true,
-              "esModuleInterop": true,
-              "skipLibCheck": true,
-              "forceConsistentCasingInFileNames": true,
-              "rootDir": "./src"
-            },
-            "include": ["src/**/*"],
-            "exclude": ["node_modules", "dist", "test"]
-          }' > tsconfig.json
-          cat tsconfig.json
-
       - name: Build TypeScript
         run: |
-          npx tsc --project tsconfig.json
+          npx tsc --target es2018 --module commonjs --declaration --outDir ./dist --strict --esModuleInterop --skipLibCheck --forceConsistentCasingInFileNames src/**/*.ts
           ls -la dist/
 
       - name: Publish to npm
