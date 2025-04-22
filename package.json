@@ -1,5 +1,5 @@
 {
-  "name": "common-js",
+  "name": "@bennu-cl/commons-js",
   "version": "1.0.0",
   "description": "A TypeScript validator for Chilean RUT (Rol Único Tributario) numbers",
   "main": "dist/index.js",
@@ -18,7 +18,7 @@
     "identity",
     "typescript"
   ],
-  "author": "@bennu/jomendev",
+  "author": "@bennu-cl/jomendev",
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.0",
@@ -32,10 +32,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/bennu/common-js"
+    "url": "https://github.com/bennu/commons-js"
   },
   "bugs": {
-    "url": "https://github.com/bennu/common-js/issues"
+    "url": "https://github.com/bennu/commons-js/issues"
   },
-  "homepage": "https://github.com/bennu/common-jst#readme"
+  "homepage": "https://github.com/bennu/commons-js#readme"
 }
