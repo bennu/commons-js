@@ -22,12 +22,8 @@ jobs:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install dependencies and generate package-lock.json
-        run: |
-          npm install
-          npm install --package-lock-only
-          git add package-lock.json
-          git commit -m "chore: update package-lock.json" || echo "No changes to commit"
+      - name: Install dependencies
+        run: npm ci
 
       - name: Update package.json with release tag
         run: |
@@ -45,6 +41,11 @@ jobs:
           git push origin ${{ github.event.repository.default_branch }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build TypeScript
+        run: |
+          npx tsc --target es2018 --module commonjs --declaration --outDir ./dist --strict --esModuleInterop --skipLibCheck --forceConsistentCasingInFileNames src/**/*.ts
+          ls -la dist/
 
       - name: Publish to npm
         run: npm publish --access public

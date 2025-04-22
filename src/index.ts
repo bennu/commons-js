@@ -8,4 +8,4 @@ export {
   cleanRut,
   calculateVerificationDigit,
   RutValidationResult
-} from './src/validate-chilean-rut'
+} from './validate-chilean-rut' 
