@@ -1,44 +1,37 @@
 import {
-  isStrongPassword,
-  validatePasswordStrength,
+  validatePassword,
+  isValidPassword,
   validatePasswordMatch,
   passwordsMatch,
-  cleanPassword,
-  calculatePasswordStrength,
-  createStrongPasswordValidator,
-  createPasswordMatchValidator,
-  defaultPasswordConfig
-} from '../src/password-validator'
+  SecurityLevel,
+} from "../src/password-validator/password-validator"
 
-describe('Password Validator', () => {
-  // Test data: strong passwords (should pass default validation)
-  const strongPasswords = [
-    'MySecureP@ssw0rd123',
-    'ComplexP@ss!2024',
-    'Str0ng#Password$',
-    'ValidP@ssw0rd2024!',
-    'MyC0mplex#Password',
-    'Secure123!@#Test',
-    'P@ssw0rd!Strong123',
-    'Complex!P@ss2024'
-  ]
+describe("Simplified Password Validator", () => {
+  // Security level constants
+  const LOW_LEVEL: SecurityLevel = "low"
+  const MEDIUM_LEVEL: SecurityLevel = "medium"
+  const HIGH_LEVEL: SecurityLevel = "high"
 
-  // Test data: weak passwords (should fail default validation)
-  const weakPasswords = [
-    'password123', // No uppercase, no symbol
-    'PASSWORD123', // No lowercase, no symbol
-    'Password!', // Too short
-    'Pass123!', // Too short
-    'MyPassword', // No number, no symbol
-    'mypassword123!', // No uppercase
-    'MYPASSWORD123!', // No lowercase
-    'MyPassword123', // No symbol
-    '123456789!', // No letters
-    'P@ss!', // Too short
-    '', // Empty
-    'a'.repeat(100), // Too long
-    'Password123!Password123!Password123!Password123!Password123!Password123!' // Way too long
-  ]
+  // Test data for different security levels
+  const passwordTestData = {
+    low: {
+      valid: ["abc123", "password", "simple123", "test123456"],
+      invalid: ["abc12", "ab123", "abc@123", "test!123"], // too short or has symbols
+    },
+    medium: {
+      valid: ["Password123", "MyPass123", "TestAbc123", "SimplePass1"],
+      invalid: ["password123", "abc12345", "Pass123!", "MyP@ss123"], // no uppercase or has symbols
+    },
+    high: {
+      valid: [
+        "MySecureP@ssw0rd123",
+        "ComplexP@ss!2024",
+        "Str0ng#Password$",
+        "ValidP@ssw0rd2024!",
+      ],
+      invalid: ["MyPassword123", "password123!", "PASSWORD123!", "MyPass123"], // missing requirements
+    },
+  }
 
   const nonStringInputs: unknown[] = [
     null,
@@ -48,280 +41,336 @@ describe('Password Validator', () => {
     123456789,
     true,
     false,
-    Symbol('test'),
-    new Date()
+    Symbol("test"),
+    new Date(),
   ]
 
-  // Test cleanPassword function
-  describe('cleanPassword', () => {
-    test('should remove leading and trailing whitespace', () => {
-      expect(cleanPassword('  MyPassword123!  ')).toBe('MyPassword123!')
-      expect(cleanPassword('\tMyPassword123!\t')).toBe('MyPassword123!')
-      expect(cleanPassword('\nMyPassword123!\n')).toBe('MyPassword123!')
-    })
-
-    test('should preserve internal spaces', () => {
-      expect(cleanPassword('My Password 123!')).toBe('My Password 123!')
-    })
-
-    test('should handle non-string inputs', () => {
-      expect(cleanPassword(null)).toBe('')
-      expect(cleanPassword(undefined)).toBe('')
-      expect(cleanPassword(123456789)).toBe('123456789')
-      expect(cleanPassword({})).toEqual(expect.any(String))
-      expect(cleanPassword([])).toEqual(expect.any(String))
-      expect(cleanPassword(true)).toBe('true')
-    })
-
-    test('should handle empty inputs', () => {
-      expect(cleanPassword('')).toBe('')
-      expect(cleanPassword('   ')).toBe('')
-    })
-  })
-
-  // Test calculatePasswordStrength function
-  describe('calculatePasswordStrength', () => {
-    test('should return 0 for empty password', () => {
-      expect(calculatePasswordStrength('')).toBe(0)
-      expect(calculatePasswordStrength('   ')).toBe(0)
-    })
-
-    test('should return higher scores for stronger passwords', () => {
-      const weakScore = calculatePasswordStrength('password')
-      const strongScore = calculatePasswordStrength('MySecureP@ssw0rd123')
-      expect(strongScore).toBeGreaterThan(weakScore)
-    })
-
-    test('should return score between 0 and 100', () => {
-      strongPasswords.forEach(password => {
-        const score = calculatePasswordStrength(password)
-        expect(score).toBeGreaterThanOrEqual(0)
-        expect(score).toBeLessThanOrEqual(100)
+  // Test validatePassword function
+  describe("validatePassword", () => {
+    describe("Low security level", () => {
+      test("should validate correct low-level passwords", () => {
+        passwordTestData.low.valid.forEach((password) => {
+          const result = validatePassword(password, LOW_LEVEL)
+          expect(result.isValid).toBe(true)
+          expect(result.missing).toHaveLength(0)
+          expect(result.level).toBe(LOW_LEVEL)
+        })
       })
-    })
-  })
 
-  // Test isStrongPassword function
-  describe('isStrongPassword', () => {
-    test('should return true for strong passwords', () => {
-      strongPasswords.forEach((password) => {
-        expect(isStrongPassword(password)).toBe(true)
+      test("should reject invalid low-level passwords", () => {
+        passwordTestData.low.invalid.forEach((password) => {
+          const result = validatePassword(password, LOW_LEVEL)
+          expect(result.isValid).toBe(false)
+          expect(result.missing.length).toBeGreaterThan(0)
+          expect(result.level).toBe(LOW_LEVEL)
+        })
       })
-    })
 
-    test('should return false for weak passwords', () => {
-      weakPasswords.forEach((password) => {
-        expect(isStrongPassword(password)).toBe(false)
-      })
-    })
-
-    test('should handle non-string inputs', () => {
-      nonStringInputs.forEach((input) => {
-        expect(isStrongPassword(input)).toBe(false)
-      })
-    })
-
-    test('should respect custom configuration', () => {
-      const customConfig = { 
-        minLength: 6, 
-        requireSymbol: false,
-        requireUppercase: false 
-      }
-      expect(isStrongPassword('simple123', customConfig)).toBe(true)
-      expect(isStrongPassword('simple123')).toBe(false) // Default config
-    })
-  })
-
-  // Test validatePasswordStrength function
-  describe('validatePasswordStrength', () => {
-    test('should return correct validation information for strong passwords', () => {
-      const result = validatePasswordStrength('MySecureP@ssw0rd123')
-      expect(result.isValid).toBe(true)
-      expect(result.errors).toHaveLength(0)
-      expect(result.strength).toBeGreaterThan(70)
-      expect(result.raw).toBe('MySecureP@ssw0rd123')
-      expect(result.checks.hasMinLength).toBe(true)
-      expect(result.checks.hasMaxLength).toBe(true)
-      expect(result.checks.hasUppercase).toBe(true)
-      expect(result.checks.hasLowercase).toBe(true)
-      expect(result.checks.hasNumber).toBe(true)
-      expect(result.checks.hasSymbol).toBe(true)
-    })
-
-    test('should return detailed errors for weak passwords', () => {
-      const result = validatePasswordStrength('weak')
-      expect(result.isValid).toBe(false)
-      expect(result.errors.length).toBeGreaterThan(0)
-      expect(result.errors).toContain('Password must be at least 12 characters long')
-      expect(result.errors).toContain('Password must contain at least one number')
-      expect(result.errors).toContain('Password must contain at least one symbol')
-      expect(result.checks.hasMinLength).toBe(false)
-      expect(result.checks.hasNumber).toBe(false)
-      expect(result.checks.hasSymbol).toBe(false)
-    })
-
-    test('should handle custom configuration', () => {
-      const customConfig = { minLength: 6, requireSymbol: false }
-      const result = validatePasswordStrength('MyPass123', customConfig)
-      expect(result.isValid).toBe(true)
-      expect(result.errors).toHaveLength(0)
-    })
-
-    test('should handle non-string inputs', () => {
-      nonStringInputs.forEach((input) => {
-        const result = validatePasswordStrength(input)
+      test("should reject too short passwords", () => {
+        const result = validatePassword("abc12", LOW_LEVEL)
         expect(result.isValid).toBe(false)
-        expect(result.errors.length).toBeGreaterThan(0)
-        expect(result.raw).toBe(String(input || ''))
+        expect(result.missing).toContain("At least 6 characters")
       })
+
+      test("should reject non-alphanumeric passwords", () => {
+        const result = validatePassword("abc123!", LOW_LEVEL)
+        expect(result.isValid).toBe(false)
+        expect(result.missing).toContain("Only letters and numbers allowed")
+      })
+    })
+
+    describe("Medium security level", () => {
+      test("should validate correct medium-level passwords", () => {
+        passwordTestData.medium.valid.forEach((password) => {
+          const result = validatePassword(password, MEDIUM_LEVEL)
+          expect(result.isValid).toBe(true)
+          expect(result.missing).toHaveLength(0)
+          expect(result.level).toBe(MEDIUM_LEVEL)
+        })
+      })
+
+      test("should reject invalid medium-level passwords", () => {
+        passwordTestData.medium.invalid.forEach((password) => {
+          const result = validatePassword(password, MEDIUM_LEVEL)
+          expect(result.isValid).toBe(false)
+          expect(result.missing.length).toBeGreaterThan(0)
+          expect(result.level).toBe(MEDIUM_LEVEL)
+        })
+      })
+
+      test("should require uppercase letter", () => {
+        const result = validatePassword("password123", MEDIUM_LEVEL)
+        expect(result.isValid).toBe(false)
+        expect(result.missing).toContain("At least one uppercase letter")
+      })
+
+      test("should require minimum 8 characters", () => {
+        const result = validatePassword("Pass12", MEDIUM_LEVEL)
+        expect(result.isValid).toBe(false)
+        expect(result.missing).toContain("At least 8 characters")
+      })
+
+      test("should reject symbols", () => {
+        const result = validatePassword("Password123!", MEDIUM_LEVEL)
+        expect(result.isValid).toBe(false)
+        expect(result.missing).toContain("Only letters and numbers allowed")
+      })
+    })
+
+    describe("High security level", () => {
+      test("should validate correct high-level passwords", () => {
+        passwordTestData.high.valid.forEach((password) => {
+          const result = validatePassword(password, HIGH_LEVEL)
+          expect(result.isValid).toBe(true)
+          expect(result.missing).toHaveLength(0)
+          expect(result.level).toBe(HIGH_LEVEL)
+        })
+      })
+
+      test("should reject invalid high-level passwords", () => {
+        passwordTestData.high.invalid.forEach((password) => {
+          const result = validatePassword(password, HIGH_LEVEL)
+          expect(result.isValid).toBe(false)
+          expect(result.missing.length).toBeGreaterThan(0)
+          expect(result.level).toBe(HIGH_LEVEL)
+        })
+      })
+
+      test("should require all character types", () => {
+        const testCases = [
+          {
+            password: "mypassword123!",
+            missing: "At least one uppercase letter",
+          },
+          {
+            password: "MYPASSWORD123!",
+            missing: "At least one lowercase letter",
+          },
+          { password: "MyPassword!", missing: "At least one number" },
+          { password: "MyPassword123", missing: "At least one symbol" },
+        ]
+
+        testCases.forEach(({ password, missing }) => {
+          const result = validatePassword(password, HIGH_LEVEL)
+          expect(result.isValid).toBe(false)
+          expect(result.missing).toContain(missing)
+        })
+      })
+
+      test("should require minimum 12 characters", () => {
+        const result = validatePassword("MyPass1!", HIGH_LEVEL)
+        expect(result.isValid).toBe(false)
+        expect(result.missing).toContain("At least 12 characters")
+      })
+    })
+
+    describe("Repeated characters validation", () => {
+      test("should reject passwords with 3+ repeated characters", () => {
+        const passwordsWithRepeats = [
+          "MyPasssssword123!",
+          "MyPassword1111!",
+          "MMMPassword123!",
+          "MyPassword!!!123",
+        ]
+
+        passwordsWithRepeats.forEach((password) => {
+          const result = validatePassword(password, HIGH_LEVEL)
+          expect(result.isValid).toBe(false)
+          expect(result.missing).toContain(
+            "No repeated characters (3+ consecutive)"
+          )
+        })
+      })
+
+      test("should allow passwords with 2 repeated characters", () => {
+        const result = validatePassword("MyPasswword123!", HIGH_LEVEL)
+        expect(result.missing).not.toContain(
+          "No repeated characters (3+ consecutive)"
+        )
+      })
+    })
+
+    describe("Length validation", () => {
+      test("should reject too long passwords", () => {
+        const tooLongPassword = "a".repeat(65) + "A1!"
+        const result = validatePassword(tooLongPassword, HIGH_LEVEL)
+        expect(result.isValid).toBe(false)
+        expect(result.missing).toContain("Maximum 64 characters")
+      })
+    })
+
+    describe("Empty and invalid inputs", () => {
+      test("should handle empty passwords", () => {
+        const result = validatePassword("", MEDIUM_LEVEL)
+        expect(result.isValid).toBe(false)
+        expect(result.missing).toContain("Password cannot be empty")
+        expect(result.level).toBe(MEDIUM_LEVEL)
+      })
+
+      test("should handle whitespace-only passwords", () => {
+        const result = validatePassword("   ", MEDIUM_LEVEL)
+        expect(result.isValid).toBe(false)
+        expect(result.missing).toContain("Password cannot be empty")
+      })
+
+      test("should handle non-string inputs", () => {
+        nonStringInputs.forEach((input) => {
+          const result = validatePassword(input, MEDIUM_LEVEL)
+          expect(result.isValid).toBe(false)
+          expect(result.missing).toContain("Password cannot be empty")
+          expect(result.level).toBe(MEDIUM_LEVEL)
+        })
+      })
+    })
+
+    describe("Default level", () => {
+      test("should use medium level as default", () => {
+        const result = validatePassword("Password123")
+        expect(result.level).toBe(MEDIUM_LEVEL)
+      })
+    })
+  })
+
+  // Test isValidPassword function
+  describe("isValidPassword", () => {
+    test("should return true for valid passwords", () => {
+      expect(isValidPassword("Password123", MEDIUM_LEVEL)).toBe(true)
+      expect(isValidPassword("abc123", LOW_LEVEL)).toBe(true)
+      expect(isValidPassword("MySecureP@ssw0rd123", HIGH_LEVEL)).toBe(true)
+    })
+
+    test("should return false for invalid passwords", () => {
+      expect(isValidPassword("password123", MEDIUM_LEVEL)).toBe(false)
+      expect(isValidPassword("abc12", LOW_LEVEL)).toBe(false)
+      expect(isValidPassword("MyPassword123", HIGH_LEVEL)).toBe(false)
+    })
+
+    test("should handle non-string inputs", () => {
+      nonStringInputs.forEach((input) => {
+        expect(isValidPassword(input, MEDIUM_LEVEL)).toBe(false)
+      })
+    })
+
+    test("should use medium level as default", () => {
+      expect(isValidPassword("Password123")).toBe(true)
+      expect(isValidPassword("password123")).toBe(false)
     })
   })
 
   // Test validatePasswordMatch function
-  describe('validatePasswordMatch', () => {
-    test('should return true for matching passwords', () => {
-      const result = validatePasswordMatch('MyPassword123!', 'MyPassword123!')
+  describe("validatePasswordMatch", () => {
+    test("should return true for matching passwords", () => {
+      const result = validatePasswordMatch("MyPassword123!", "MyPassword123!")
       expect(result.isMatch).toBe(true)
       expect(result.error).toBe(null)
-      expect(result.password1).toBe('MyPassword123!')
-      expect(result.password2).toBe('MyPassword123!')
     })
 
-    test('should return false for non-matching passwords', () => {
-      const result = validatePasswordMatch('MyPassword123!', 'MyPassword123@')
+    test("should return false for non-matching passwords", () => {
+      const result = validatePasswordMatch("MyPassword123!", "MyPassword123@")
       expect(result.isMatch).toBe(false)
-      expect(result.error).toBe('Passwords do not match')
-      expect(result.password1).toBe('MyPassword123!')
-      expect(result.password2).toBe('MyPassword123@')
+      expect(result.error).toBe("Passwords do not match")
     })
 
-    test('should handle whitespace correctly', () => {
-      const result = validatePasswordMatch('  MyPassword123!  ', 'MyPassword123!')
+    test("should handle whitespace correctly", () => {
+      const result = validatePasswordMatch(
+        "  MyPassword123!  ",
+        "MyPassword123!"
+      )
       expect(result.isMatch).toBe(true)
       expect(result.error).toBe(null)
     })
 
-    test('should handle non-string inputs', () => {
-      const result1 = validatePasswordMatch(null, undefined)
-      expect(result1.isMatch).toBe(true) // Both clean to empty string
-      expect(result1.password1).toBe('')
-      expect(result1.password2).toBe('')
+    test("should handle empty passwords", () => {
+      const result1 = validatePasswordMatch("", "")
+      expect(result1.isMatch).toBe(false)
+      expect(result1.error).toBe("Passwords do not match")
 
-      const result2 = validatePasswordMatch('password', 123)
+      const result2 = validatePasswordMatch(null, undefined)
       expect(result2.isMatch).toBe(false)
-      expect(result2.password1).toBe('password')
-      expect(result2.password2).toBe('123')
+      expect(result2.error).toBe("Passwords do not match")
+    })
+
+    test("should handle non-string inputs", () => {
+      const result1 = validatePasswordMatch("password", 123)
+      expect(result1.isMatch).toBe(false)
+      expect(result1.error).toBe("Passwords do not match")
+
+      const result2 = validatePasswordMatch(123, 123)
+      expect(result2.isMatch).toBe(true)
+      expect(result2.error).toBe(null)
     })
   })
 
   // Test passwordsMatch function
-  describe('passwordsMatch', () => {
-    test('should return true for matching passwords', () => {
-      expect(passwordsMatch('MyPassword123!', 'MyPassword123!')).toBe(true)
-      expect(passwordsMatch('', '')).toBe(true)
-      expect(passwordsMatch(null, undefined)).toBe(true)
-    })
-
-    test('should return false for non-matching passwords', () => {
-      expect(passwordsMatch('MyPassword123!', 'MyPassword123@')).toBe(false)
-      expect(passwordsMatch('password', 'different')).toBe(false)
-      expect(passwordsMatch('password', null)).toBe(false)
-    })
-
-    test('should handle non-string inputs', () => {
+  describe("passwordsMatch", () => {
+    test("should return true for matching passwords", () => {
+      expect(passwordsMatch("MyPassword123!", "MyPassword123!")).toBe(true)
       expect(passwordsMatch(123, 123)).toBe(true)
+    })
+
+    test("should return false for non-matching passwords", () => {
+      expect(passwordsMatch("MyPassword123!", "MyPassword123@")).toBe(false)
+      expect(passwordsMatch("password", "different")).toBe(false)
+      expect(passwordsMatch("password", null)).toBe(false)
+      expect(passwordsMatch("", "")).toBe(false) // Empty passwords don't match
+    })
+
+    test("should handle non-string inputs", () => {
       expect(passwordsMatch(123, 456)).toBe(false)
+      expect(passwordsMatch(null, undefined)).toBe(false)
     })
   })
 
-  // Test Angular validator functions
-  describe('createStrongPasswordValidator', () => {
-    test('should return null for valid passwords', () => {
-      const validator = createStrongPasswordValidator()
-      const mockControl = { value: 'MySecureP@ssw0rd123' }
-      
-      expect(validator(mockControl)).toBe(null)
+  // Test specific error message combinations
+  describe("Multiple validation errors", () => {
+    test("should return multiple missing requirements", () => {
+      const result = validatePassword("abc", HIGH_LEVEL)
+      expect(result.isValid).toBe(false)
+      expect(result.missing).toEqual(
+        expect.arrayContaining([
+          "At least 12 characters",
+          "At least one uppercase letter",
+          "At least one number",
+          "At least one symbol",
+        ])
+      )
     })
 
-    test('should return error object for invalid passwords', () => {
-      const validator = createStrongPasswordValidator()
-      const mockControl = { value: 'weak' }
-      
-      const result = validator(mockControl)
-      expect(result).not.toBe(null)
-      if (result) {
-        expect(result).toHaveProperty('weakPassword')
-        expect(result.weakPassword).toHaveProperty('errors')
-        expect(result.weakPassword).toHaveProperty('strength')
-        expect(Array.isArray(result.weakPassword.errors)).toBe(true)
-        expect(typeof result.weakPassword.strength).toBe('number')
-      }
-    })
-
-    test('should respect custom configuration', () => {
-      const validator = createStrongPasswordValidator({ minLength: 6, requireSymbol: false })
-      const mockControl = { value: 'MyPass123' }
-      
-      expect(validator(mockControl)).toBe(null)
+    test("should return all missing requirements for empty password", () => {
+      const result = validatePassword("", HIGH_LEVEL)
+      expect(result.isValid).toBe(false)
+      expect(result.missing).toEqual(["Password cannot be empty"])
     })
   })
 
-  describe('createPasswordMatchValidator', () => {
-    test('should return null for matching passwords', () => {
-      const validator = createPasswordMatchValidator('pass1', 'pass2')
-      const mockFormGroup = {
-        get: (fieldName: string) => {
-          if (fieldName === 'pass1') return { value: 'MyPassword123!' }
-          if (fieldName === 'pass2') return { value: 'MyPassword123!' }
-          return null
-        }
-      }
-      
-      expect(validator(mockFormGroup)).toBe(null)
+  // Test edge cases
+  describe("Edge cases", () => {
+    test("should handle exactly minimum length passwords", () => {
+      expect(validatePassword("abc123", LOW_LEVEL).isValid).toBe(true) // exactly 6 chars
+      expect(validatePassword("Password", MEDIUM_LEVEL).isValid).toBe(true) // exactly 8 chars
+      expect(validatePassword("MyP@ssw0rd12", HIGH_LEVEL).isValid).toBe(true) // exactly 12 chars
     })
 
-    test('should return error object for non-matching passwords', () => {
-      const validator = createPasswordMatchValidator('pass1', 'pass2')
-      const mockFormGroup = {
-        get: (fieldName: string) => {
-          if (fieldName === 'pass1') return { value: 'MyPassword123!' }
-          if (fieldName === 'pass2') return { value: 'MyPassword123@' }
-          return null
-        }
-      }
-      
-      const result = validator(mockFormGroup)
-      expect(result).not.toBe(null)
-      if (result) {
-        expect(result).toHaveProperty('passwordsMismatch')
-        expect(result.passwordsMismatch).toBe(true)
-      }
+    test("should handle exactly maximum length passwords", () => {
+      const maxLengthPassword = "A".repeat(32) + "1".repeat(31) + "!"
+      expect(maxLengthPassword.length).toBe(64)
+      const result = validatePassword(maxLengthPassword, HIGH_LEVEL)
+      expect(result.missing).not.toContain("Maximum 64 characters")
     })
 
-    test('should use default field names', () => {
-      const validator = createPasswordMatchValidator()
-      const mockFormGroup = {
-        get: (fieldName: string) => {
-          if (fieldName === 'password') return { value: 'MyPassword123!' }
-          if (fieldName === 'confirmPassword') return { value: 'MyPassword123!' }
-          return null
-        }
-      }
-      
-      expect(validator(mockFormGroup)).toBe(null)
+    test("should handle unicode characters", () => {
+      const result = validatePassword("MyPássw0rd123!", HIGH_LEVEL)
+      expect(result.isValid).toBe(true)
     })
-  })
 
-  // Test default configuration
-  describe('defaultPasswordConfig', () => {
-    test('should have expected default values', () => {
-      expect(defaultPasswordConfig.minLength).toBe(12)
-      expect(defaultPasswordConfig.maxLength).toBe(64)
-      expect(defaultPasswordConfig.requireUppercase).toBe(true)
-      expect(defaultPasswordConfig.requireLowercase).toBe(true)
-      expect(defaultPasswordConfig.requireNumber).toBe(true)
-      expect(defaultPasswordConfig.requireSymbol).toBe(true)
-      expect(defaultPasswordConfig.symbolPattern).toBeInstanceOf(RegExp)
+    test("should test all security levels with type safety", () => {
+      const levels: SecurityLevel[] = [LOW_LEVEL, MEDIUM_LEVEL, HIGH_LEVEL]
+
+      levels.forEach((level) => {
+        const result = validatePassword("test", level)
+        expect(result.level).toBe(level)
+        expect(["low", "medium", "high"]).toContain(result.level)
+      })
     })
   })
 })

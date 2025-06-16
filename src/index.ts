@@ -1,70 +1,38 @@
 /**
  * @bennu-cl/commons-js
- * 
+ *
  * Common utilities for JavaScript/TypeScript projects
  * Includes Chilean RUT validation and password strength validation
- * 
+ *
  * @author Created by Bennu
  * @license MIT
  */
 
-// =============================================================================
-// CHILEAN RUT VALIDATOR
-// =============================================================================
+// Password Validator exports
+export {
+  SecurityLevel,
+  ValidationResult,
+  PasswordMatchResult,
+  validatePassword,
+  isValidPassword,
+  validatePasswordMatch,
+  passwordsMatch,
+} from "./password-validator/password-validator"
 
-/**
- * Chilean RUT Validator exports
- */
+// Chilean RUT Validator exports (keep existing)
 export {
   isValidRut,
   cleanRut,
   calculateVerificationDigit,
-  RutValidationResult
-} from './validate-chilean-rut'
+  RutValidationResult,
+} from "./validate-chilean-rut"
 
-// =============================================================================
-// PASSWORD VALIDATOR
-// =============================================================================
+// Package info
+export const version = "0.1.0"
+export const author = "Bennu"
+export const license = "MIT"
 
-/**
- * Password Validator exports
- */
-export {
-  PasswordValidationConfig,
-  PasswordValidationResult,
-  PasswordMatchResult,
-  validatePasswordMatch,
-  
-  // Additional core functions
-  isStrongPassword,
-  validatePasswordStrength,
-  passwordsMatch,
-  cleanPassword,
-  calculatePasswordStrength,
-  
-  // Angular Forms compatible validators
-  createStrongPasswordValidator,
-  createPasswordMatchValidator,
-  
-  // Default configuration
-  defaultPasswordConfig
-} from './password-validator'
-
-// =============================================================================
-// PACKAGE INFO
-// =============================================================================
-
-/**
- * Package version and metadata
- */
-export const version = '0.0.1'
-export const author = 'Bennu'
-export const license = 'MIT'
-
-/**
- * Available validators in this package
- */
 export const validators = {
-  rut: 'Chilean RUT (Rol Único Tributario) validation',
-  password: 'Password strength validation with configurable rules'
+  rut: "Chilean RUT (Rol Único Tributario) validation",
+  password: "Password strength validation with security levels",
 } as const
