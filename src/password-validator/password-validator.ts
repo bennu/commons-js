@@ -6,9 +6,28 @@
 
 export type SecurityLevel = "low" | "medium" | "high"
 
+export enum ValidationErrorType {
+  EMPTY = "EMPTY",
+  TOO_SHORT = "TOO_SHORT",
+  TOO_LONG = "TOO_LONG",
+  MISSING_UPPERCASE = "MISSING_UPPERCASE",
+  MISSING_LOWERCASE = "MISSING_LOWERCASE",
+  MISSING_NUMBER = "MISSING_NUMBER",
+  MISSING_SYMBOL = "MISSING_SYMBOL",
+  NOT_ALPHANUMERIC = "NOT_ALPHANUMERIC",
+  REPEATED_CHARS = "REPEATED_CHARS",
+}
+
+export interface ValidationError {
+  type: ValidationErrorType
+  message: string
+  expectedValue?: number | string
+  actualValue?: number | string
+}
+
 export interface ValidationResult {
   isValid: boolean
-  missing: string[]
+  errors: ValidationError[]
   level: SecurityLevel
 }
 
@@ -17,9 +36,35 @@ export interface PasswordMatchResult {
   error: string | null
 }
 
-const LEVEL_REQUIREMENTS = {
+export interface LengthConfig {
+  low?: number
+  medium?: number
+  high?: number
+}
+
+const DEFAULT_MIN_LENGTHS = {
+  low: 6,
+  medium: 8,
+  high: 12,
+} as const
+
+const DEFAULT_ERROR_MESSAGES: Record<ValidationErrorType, string> = {
+  [ValidationErrorType.EMPTY]: "Password cannot be empty",
+  [ValidationErrorType.TOO_SHORT]: "Password is too short",
+  [ValidationErrorType.TOO_LONG]: "Password is too long",
+  [ValidationErrorType.MISSING_UPPERCASE]:
+    "At least one uppercase letter required",
+  [ValidationErrorType.MISSING_LOWERCASE]:
+    "At least one lowercase letter required",
+  [ValidationErrorType.MISSING_NUMBER]: "At least one number required",
+  [ValidationErrorType.MISSING_SYMBOL]: "At least one symbol required",
+  [ValidationErrorType.NOT_ALPHANUMERIC]: "Only letters and numbers allowed",
+  [ValidationErrorType.REPEATED_CHARS]:
+    "No repeated characters (3+ consecutive)",
+}
+
+const BASE_LEVEL_REQUIREMENTS = {
   low: {
-    minLength: 6,
     maxLength: 64,
     requireUppercase: false,
     requireLowercase: false,
@@ -28,7 +73,6 @@ const LEVEL_REQUIREMENTS = {
     allowOnlyAlphanumeric: true,
   },
   medium: {
-    minLength: 8,
     maxLength: 64,
     requireUppercase: true,
     requireLowercase: false,
@@ -37,7 +81,6 @@ const LEVEL_REQUIREMENTS = {
     allowOnlyAlphanumeric: true,
   },
   high: {
-    minLength: 12,
     maxLength: 64,
     requireUppercase: true,
     requireLowercase: true,
@@ -63,30 +106,79 @@ function hasRepeatedChars(password: string): boolean {
 }
 
 /**
+ * Create a validation error
+ */
+function createError(
+  type: ValidationErrorType,
+  expectedValue?: number | string,
+  actualValue?: number | string,
+  customMessage?: string
+): ValidationError {
+  return {
+    type,
+    message: customMessage || DEFAULT_ERROR_MESSAGES[type],
+    expectedValue,
+    actualValue,
+  }
+}
+
+/**
+ * Get level requirements with custom min lengths
+ */
+function getLevelRequirements(
+  level: SecurityLevel,
+  customLengths?: LengthConfig
+) {
+  const baseRequirements = BASE_LEVEL_REQUIREMENTS[level]
+  const minLength = customLengths?.[level] ?? DEFAULT_MIN_LENGTHS[level]
+
+  return {
+    ...baseRequirements,
+    minLength,
+  }
+}
+
+/**
  * Validate password against security level requirements
  */
 export function validatePassword(
   password: unknown,
-  level: SecurityLevel = "medium"
+  level: SecurityLevel = "medium",
+  customLengths?: LengthConfig
 ): ValidationResult {
   const cleanedPassword = cleanPassword(password)
-  const requirements = LEVEL_REQUIREMENTS[level]
-  const missing: string[] = []
+  const requirements = getLevelRequirements(level, customLengths)
+  const errors: ValidationError[] = []
 
   if (!cleanedPassword) {
+    const error = createError(ValidationErrorType.EMPTY)
     return {
       isValid: false,
-      missing: ["Password cannot be empty"],
+      errors: [error],
       level,
     }
   }
 
   // Length checks
   if (cleanedPassword.length < requirements.minLength) {
-    missing.push(`At least ${requirements.minLength} characters`)
+    errors.push(
+      createError(
+        ValidationErrorType.TOO_SHORT,
+        requirements.minLength,
+        cleanedPassword.length,
+        `At least ${requirements.minLength} characters`
+      )
+    )
   }
   if (cleanedPassword.length > requirements.maxLength) {
-    missing.push(`Maximum ${requirements.maxLength} characters`)
+    errors.push(
+      createError(
+        ValidationErrorType.TOO_LONG,
+        requirements.maxLength,
+        cleanedPassword.length,
+        `Maximum ${requirements.maxLength} characters`
+      )
+    )
   }
 
   // Character type checks
@@ -99,31 +191,66 @@ export function validatePassword(
   const isAlphanumeric = /^[a-zA-Z0-9]+$/.test(cleanedPassword)
 
   if (requirements.requireUppercase && !hasUppercase) {
-    missing.push("At least one uppercase letter")
+    errors.push(
+      createError(
+        ValidationErrorType.MISSING_UPPERCASE,
+        undefined,
+        undefined,
+        "At least one uppercase letter"
+      )
+    )
   }
   if (requirements.requireLowercase && !hasLowercase) {
-    missing.push("At least one lowercase letter")
+    errors.push(
+      createError(
+        ValidationErrorType.MISSING_LOWERCASE,
+        undefined,
+        undefined,
+        "At least one lowercase letter"
+      )
+    )
   }
   if (requirements.requireNumber && !hasNumber) {
-    missing.push("At least one number")
+    errors.push(
+      createError(
+        ValidationErrorType.MISSING_NUMBER,
+        undefined,
+        undefined,
+        "At least one number"
+      )
+    )
   }
   if (requirements.requireSymbol && !hasSymbol) {
-    missing.push("At least one symbol")
+    errors.push(
+      createError(
+        ValidationErrorType.MISSING_SYMBOL,
+        undefined,
+        undefined,
+        "At least one symbol"
+      )
+    )
   }
 
   // Alphanumeric only check for low/medium levels
   if (requirements.allowOnlyAlphanumeric && !isAlphanumeric) {
-    missing.push("Only letters and numbers allowed")
+    errors.push(
+      createError(
+        ValidationErrorType.NOT_ALPHANUMERIC,
+        undefined,
+        undefined,
+        "Only letters and numbers allowed"
+      )
+    )
   }
 
   // Repeated characters check
   if (hasRepeatedChars(cleanedPassword)) {
-    missing.push("No repeated characters (3+ consecutive)")
+    errors.push(createError(ValidationErrorType.REPEATED_CHARS))
   }
 
   return {
-    isValid: missing.length === 0,
-    missing,
+    isValid: errors.length === 0,
+    errors,
     level,
   }
 }
@@ -133,9 +260,10 @@ export function validatePassword(
  */
 export function isValidPassword(
   password: unknown,
-  level: SecurityLevel = "medium"
+  level: SecurityLevel = "medium",
+  customLengths?: LengthConfig
 ): boolean {
-  return validatePassword(password, level).isValid
+  return validatePassword(password, level, customLengths).isValid
 }
 
 /**
@@ -164,4 +292,36 @@ export function passwordsMatch(
   password2: unknown
 ): boolean {
   return validatePasswordMatch(password1, password2).isMatch
+}
+
+/**
+ * Check if validation result has specific error type
+ */
+export function hasErrorType(
+  result: ValidationResult,
+  errorType: ValidationErrorType
+): boolean {
+  return result.errors.some((error) => error.type === errorType)
+}
+
+/**
+ * Get all errors of a specific type
+ */
+export function getErrorsByType(
+  result: ValidationResult,
+  errorType: ValidationErrorType
+): ValidationError[] {
+  return result.errors.filter((error) => error.type === errorType)
+}
+
+/**
+ * Get validation result with custom error messages
+ */
+export function getCustomErrorMessages(
+  result: ValidationResult,
+  customMessages: Partial<Record<ValidationErrorType, string>>
+): string[] {
+  return result.errors.map(
+    (error) => customMessages[error.type] || error.message
+  )
 }
