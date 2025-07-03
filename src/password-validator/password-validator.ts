@@ -16,6 +16,7 @@ export enum ValidationErrorType {
   MISSING_SYMBOL = "MISSING_SYMBOL",
   NOT_ALPHANUMERIC = "NOT_ALPHANUMERIC",
   REPEATED_CHARS = "REPEATED_CHARS",
+  NON_STRING_INPUT = "NON_STRING_INPUT",
 }
 
 export interface ValidationError {
@@ -29,6 +30,15 @@ export interface ValidationResult {
   isValid: boolean
   errors: ValidationError[]
   level: SecurityLevel
+  /** @deprecated Use errors instead. Will be removed in v1.0 */
+  missing: string[]
+
+  // Built-in utility methods
+  hasErrorType(errorType: ValidationErrorType): boolean
+  getErrorsByType(errorType: ValidationErrorType): ValidationError[]
+  getCustomErrorMessages(
+    customMessages: Partial<Record<ValidationErrorType, string>>
+  ): string[]
 }
 
 export interface PasswordMatchResult {
@@ -61,6 +71,7 @@ const DEFAULT_ERROR_MESSAGES: Record<ValidationErrorType, string> = {
   [ValidationErrorType.NOT_ALPHANUMERIC]: "Only letters and numbers allowed",
   [ValidationErrorType.REPEATED_CHARS]:
     "No repeated characters (3+ consecutive)",
+  [ValidationErrorType.NON_STRING_INPUT]: "Input must be a string",
 }
 
 const BASE_LEVEL_REQUIREMENTS = {
@@ -104,10 +115,33 @@ function cleanPassword(password: unknown): string {
 function hasRepeatedChars(password: string): boolean {
   return /(.)\1{2,}/.test(password)
 }
+function createValidationResult(
+  isValid: boolean,
+  errors: ValidationError[],
+  level: SecurityLevel
+): ValidationResult {
+  return {
+    isValid,
+    errors,
+    level,
+    missing: errors.map((e) => e.message), // Backward compatibility
 
-/**
- * Create a validation error
- */
+    // Built-in utility methods
+    hasErrorType(errorType: ValidationErrorType): boolean {
+      return errors.some((error) => error.type === errorType)
+    },
+
+    getErrorsByType(errorType: ValidationErrorType): ValidationError[] {
+      return errors.filter((error) => error.type === errorType)
+    },
+
+    getCustomErrorMessages(
+      customMessages: Partial<Record<ValidationErrorType, string>>
+    ): string[] {
+      return errors.map((error) => customMessages[error.type] || error.message)
+    },
+  }
+}
 function createError(
   type: ValidationErrorType,
   expectedValue?: number | string,
@@ -146,17 +180,19 @@ export function validatePassword(
   level: SecurityLevel = "medium",
   customLengths?: LengthConfig
 ): ValidationResult {
+  // Check if input is a valid string first
+  if (typeof password !== "string") {
+    const error = createError(ValidationErrorType.NON_STRING_INPUT)
+    return createValidationResult(false, [error], level)
+  }
+
   const cleanedPassword = cleanPassword(password)
   const requirements = getLevelRequirements(level, customLengths)
   const errors: ValidationError[] = []
 
   if (!cleanedPassword) {
     const error = createError(ValidationErrorType.EMPTY)
-    return {
-      isValid: false,
-      errors: [error],
-      level,
-    }
+    return createValidationResult(false, [error], level)
   }
 
   // Length checks
@@ -248,15 +284,11 @@ export function validatePassword(
     errors.push(createError(ValidationErrorType.REPEATED_CHARS))
   }
 
-  return {
-    isValid: errors.length === 0,
-    errors,
-    level,
-  }
+  return createValidationResult(errors.length === 0, errors, level)
 }
 
 /**
- * Simple boolean check for password strength
+ * Simple boolean check for password validity
  */
 export function isValidPassword(
   password: unknown,
@@ -292,36 +324,4 @@ export function passwordsMatch(
   password2: unknown
 ): boolean {
   return validatePasswordMatch(password1, password2).isMatch
-}
-
-/**
- * Check if validation result has specific error type
- */
-export function hasErrorType(
-  result: ValidationResult,
-  errorType: ValidationErrorType
-): boolean {
-  return result.errors.some((error) => error.type === errorType)
-}
-
-/**
- * Get all errors of a specific type
- */
-export function getErrorsByType(
-  result: ValidationResult,
-  errorType: ValidationErrorType
-): ValidationError[] {
-  return result.errors.filter((error) => error.type === errorType)
-}
-
-/**
- * Get validation result with custom error messages
- */
-export function getCustomErrorMessages(
-  result: ValidationResult,
-  customMessages: Partial<Record<ValidationErrorType, string>>
-): string[] {
-  return result.errors.map(
-    (error) => customMessages[error.type] || error.message
-  )
 }

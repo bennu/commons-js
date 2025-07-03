@@ -8,21 +8,21 @@
  * @license MIT
  */
 
-// Password Validator exports
+// Password Validator exports - Only core functions and essential types
 export {
+  // Core validation function (contains all utilities)
+  validatePassword,
+  // Password matching functions
+  validatePasswordMatch,
+  passwordsMatch,
+  
+  // Essential types for TypeScript users
   SecurityLevel,
   ValidationResult,
   ValidationError,
   ValidationErrorType,
   PasswordMatchResult,
   LengthConfig,
-  validatePassword,
-  isValidPassword,
-  validatePasswordMatch,
-  passwordsMatch,
-  hasErrorType,
-  getErrorsByType,
-  getCustomErrorMessages,
 } from "./password-validator/password-validator"
 
 // Chilean RUT Validator exports
@@ -40,6 +40,5 @@ export const license = "MIT"
 
 export const validators = {
   rut: "Chilean RUT (Rol Único Tributario) validation",
-  password:
-    "Password strength validation with typed error system and security levels",
+  password: "Password strength validation with built-in utilities and typed error system",
 } as const

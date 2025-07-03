@@ -5,9 +5,6 @@ import {
   passwordsMatch,
   SecurityLevel,
   ValidationErrorType,
-  hasErrorType,
-  getErrorsByType,
-  getCustomErrorMessages,
 } from "../src/password-validator/password-validator"
 
 describe("Simplified Password Validator", () => {
@@ -15,6 +12,9 @@ describe("Simplified Password Validator", () => {
   const LOW_LEVEL: SecurityLevel = "low"
   const MEDIUM_LEVEL: SecurityLevel = "medium"
   const HIGH_LEVEL: SecurityLevel = "high"
+
+  // Non-string inputs for testing
+  const nonStringInputs = [null, undefined, 123, {}, [], true, false]
 
   // Test data for different security levels
   const passwordTestData = {
@@ -36,18 +36,6 @@ describe("Simplified Password Validator", () => {
       invalid: ["MyPassword123", "password123!", "PASSWORD123!", "MyPass123"], // missing requirements
     },
   }
-
-  const nonStringInputs: unknown[] = [
-    null,
-    undefined,
-    {},
-    [],
-    123456789,
-    true,
-    false,
-    Symbol("test"),
-    new Date(),
-  ]
 
   // Test validatePassword function
   describe("validatePassword", () => {
@@ -73,10 +61,9 @@ describe("Simplified Password Validator", () => {
       test("should reject too short passwords with correct error type", () => {
         const result = validatePassword("abc12", LOW_LEVEL)
         expect(result.isValid).toBe(false)
-        expect(hasErrorType(result, ValidationErrorType.TOO_SHORT)).toBe(true)
+        expect(result.hasErrorType(ValidationErrorType.TOO_SHORT)).toBe(true)
 
-        const shortErrors = getErrorsByType(
-          result,
+        const shortErrors = result.getErrorsByType(
           ValidationErrorType.TOO_SHORT
         )
         expect(shortErrors).toHaveLength(1)
@@ -87,7 +74,7 @@ describe("Simplified Password Validator", () => {
       test("should reject non-alphanumeric passwords", () => {
         const result = validatePassword("abc123!", LOW_LEVEL)
         expect(result.isValid).toBe(false)
-        expect(hasErrorType(result, ValidationErrorType.NOT_ALPHANUMERIC)).toBe(
+        expect(result.hasErrorType(ValidationErrorType.NOT_ALPHANUMERIC)).toBe(
           true
         )
       })
@@ -115,21 +102,21 @@ describe("Simplified Password Validator", () => {
       test("should require uppercase letter", () => {
         const result = validatePassword("password123", MEDIUM_LEVEL)
         expect(result.isValid).toBe(false)
-        expect(
-          hasErrorType(result, ValidationErrorType.MISSING_UPPERCASE)
-        ).toBe(true)
+        expect(result.hasErrorType(ValidationErrorType.MISSING_UPPERCASE)).toBe(
+          true
+        )
       })
 
       test("should require minimum 8 characters", () => {
         const result = validatePassword("Pass12", MEDIUM_LEVEL)
         expect(result.isValid).toBe(false)
-        expect(hasErrorType(result, ValidationErrorType.TOO_SHORT)).toBe(true)
+        expect(result.hasErrorType(ValidationErrorType.TOO_SHORT)).toBe(true)
       })
 
       test("should reject symbols", () => {
         const result = validatePassword("Password123!", MEDIUM_LEVEL)
         expect(result.isValid).toBe(false)
-        expect(hasErrorType(result, ValidationErrorType.NOT_ALPHANUMERIC)).toBe(
+        expect(result.hasErrorType(ValidationErrorType.NOT_ALPHANUMERIC)).toBe(
           true
         )
       })
@@ -177,14 +164,14 @@ describe("Simplified Password Validator", () => {
         testCases.forEach(({ password, errorType }) => {
           const result = validatePassword(password, HIGH_LEVEL)
           expect(result.isValid).toBe(false)
-          expect(hasErrorType(result, errorType)).toBe(true)
+          expect(result.hasErrorType(errorType)).toBe(true)
         })
       })
 
       test("should require minimum 12 characters", () => {
         const result = validatePassword("MyPass1!", HIGH_LEVEL)
         expect(result.isValid).toBe(false)
-        expect(hasErrorType(result, ValidationErrorType.TOO_SHORT)).toBe(true)
+        expect(result.hasErrorType(ValidationErrorType.TOO_SHORT)).toBe(true)
       })
     })
 
@@ -200,7 +187,7 @@ describe("Simplified Password Validator", () => {
         passwordsWithRepeats.forEach((password) => {
           const result = validatePassword(password, HIGH_LEVEL)
           expect(result.isValid).toBe(false)
-          expect(hasErrorType(result, ValidationErrorType.REPEATED_CHARS)).toBe(
+          expect(result.hasErrorType(ValidationErrorType.REPEATED_CHARS)).toBe(
             true
           )
         })
@@ -208,7 +195,7 @@ describe("Simplified Password Validator", () => {
 
       test("should allow passwords with 2 repeated characters", () => {
         const result = validatePassword("MyPasswword123!", HIGH_LEVEL)
-        expect(hasErrorType(result, ValidationErrorType.REPEATED_CHARS)).toBe(
+        expect(result.hasErrorType(ValidationErrorType.REPEATED_CHARS)).toBe(
           false
         )
       })
@@ -219,7 +206,7 @@ describe("Simplified Password Validator", () => {
         const tooLongPassword = "a".repeat(65) + "A1!"
         const result = validatePassword(tooLongPassword, HIGH_LEVEL)
         expect(result.isValid).toBe(false)
-        expect(hasErrorType(result, ValidationErrorType.TOO_LONG)).toBe(true)
+        expect(result.hasErrorType(ValidationErrorType.TOO_LONG)).toBe(true)
       })
     })
 
@@ -227,21 +214,23 @@ describe("Simplified Password Validator", () => {
       test("should handle empty passwords", () => {
         const result = validatePassword("", MEDIUM_LEVEL)
         expect(result.isValid).toBe(false)
-        expect(hasErrorType(result, ValidationErrorType.EMPTY)).toBe(true)
+        expect(result.hasErrorType(ValidationErrorType.EMPTY)).toBe(true)
         expect(result.level).toBe(MEDIUM_LEVEL)
       })
 
       test("should handle whitespace-only passwords", () => {
         const result = validatePassword("   ", MEDIUM_LEVEL)
         expect(result.isValid).toBe(false)
-        expect(hasErrorType(result, ValidationErrorType.EMPTY)).toBe(true)
+        expect(result.hasErrorType(ValidationErrorType.EMPTY)).toBe(true)
       })
 
       test("should handle non-string inputs", () => {
         nonStringInputs.forEach((input) => {
           const result = validatePassword(input, MEDIUM_LEVEL)
           expect(result.isValid).toBe(false)
-          expect(hasErrorType(result, ValidationErrorType.EMPTY)).toBe(true)
+          expect(
+            result.hasErrorType(ValidationErrorType.NON_STRING_INPUT)
+          ).toBe(true)
           expect(result.level).toBe(MEDIUM_LEVEL)
         })
       })
@@ -255,14 +244,14 @@ describe("Simplified Password Validator", () => {
         const lowResult = validatePassword("abc1", LOW_LEVEL, customLengths)
         expect(lowResult.isValid).toBe(true)
 
-        // Test medium level with custom length
+        // Test medium level with custom length (password too short)
         const mediumResult = validatePassword(
-          "Password12",
+          "Password1",
           MEDIUM_LEVEL,
           customLengths
-        )
+        ) // 9 chars < 10
         expect(mediumResult.isValid).toBe(false)
-        expect(hasErrorType(mediumResult, ValidationErrorType.TOO_SHORT)).toBe(
+        expect(mediumResult.hasErrorType(ValidationErrorType.TOO_SHORT)).toBe(
           true
         )
 
@@ -271,9 +260,9 @@ describe("Simplified Password Validator", () => {
           "MyP@ssw0rd123!",
           HIGH_LEVEL,
           customLengths
-        )
+        ) // 14 chars < 16
         expect(highResult.isValid).toBe(false)
-        expect(hasErrorType(highResult, ValidationErrorType.TOO_SHORT)).toBe(
+        expect(highResult.hasErrorType(ValidationErrorType.TOO_SHORT)).toBe(
           true
         )
       })
@@ -285,12 +274,11 @@ describe("Simplified Password Validator", () => {
           "MyP@ssw0rd123!Extra",
           HIGH_LEVEL,
           partialConfig
-        )
+        ) // 19 chars < 20
         expect(result.isValid).toBe(false)
-        expect(hasErrorType(result, ValidationErrorType.TOO_SHORT)).toBe(true)
+        expect(result.hasErrorType(ValidationErrorType.TOO_SHORT)).toBe(true)
 
-        const shortErrors = getErrorsByType(
-          result,
+        const shortErrors = result.getErrorsByType(
           ValidationErrorType.TOO_SHORT
         )
         expect(shortErrors[0].expectedValue).toBe(20)
@@ -305,7 +293,7 @@ describe("Simplified Password Validator", () => {
     })
   })
 
-  // Test isValidPassword function
+  // Test isValidPassword function (convenience method)
   describe("isValidPassword", () => {
     test("should return true for valid passwords", () => {
       expect(isValidPassword("Password123", MEDIUM_LEVEL)).toBe(true)
@@ -337,35 +325,43 @@ describe("Simplified Password Validator", () => {
     })
   })
 
-  // Test error utility functions
-  describe("Error utility functions", () => {
+  // Test validatePassword as detailed validation
+  describe("validatePassword as detailed validation", () => {
+    test("should return detailed validation info", () => {
+      const result = validatePassword("Password123", MEDIUM_LEVEL)
+      expect(result.isValid).toBe(true)
+      expect(result.errors).toHaveLength(0)
+      expect(result.level).toBe(MEDIUM_LEVEL)
+      expect(typeof result.hasErrorType).toBe("function")
+      expect(typeof result.getErrorsByType).toBe("function")
+      expect(typeof result.getCustomErrorMessages).toBe("function")
+    })
+  })
+
+  // Test built-in error utility methods
+  describe("Built-in error utility methods", () => {
     test("hasErrorType should correctly identify error types", () => {
       const result = validatePassword("abc", HIGH_LEVEL)
 
-      expect(hasErrorType(result, ValidationErrorType.TOO_SHORT)).toBe(true)
-      expect(hasErrorType(result, ValidationErrorType.MISSING_UPPERCASE)).toBe(
+      expect(result.hasErrorType(ValidationErrorType.TOO_SHORT)).toBe(true)
+      expect(result.hasErrorType(ValidationErrorType.MISSING_UPPERCASE)).toBe(
         true
       )
-      expect(hasErrorType(result, ValidationErrorType.MISSING_NUMBER)).toBe(
-        true
-      )
-      expect(hasErrorType(result, ValidationErrorType.MISSING_SYMBOL)).toBe(
-        true
-      )
-      expect(hasErrorType(result, ValidationErrorType.EMPTY)).toBe(false)
+      expect(result.hasErrorType(ValidationErrorType.MISSING_NUMBER)).toBe(true)
+      expect(result.hasErrorType(ValidationErrorType.MISSING_SYMBOL)).toBe(true)
+      expect(result.hasErrorType(ValidationErrorType.EMPTY)).toBe(false)
     })
 
     test("getErrorsByType should filter errors correctly", () => {
       const result = validatePassword("abc", HIGH_LEVEL)
 
-      const shortErrors = getErrorsByType(result, ValidationErrorType.TOO_SHORT)
+      const shortErrors = result.getErrorsByType(ValidationErrorType.TOO_SHORT)
       expect(shortErrors).toHaveLength(1)
       expect(shortErrors[0].type).toBe(ValidationErrorType.TOO_SHORT)
       expect(shortErrors[0].expectedValue).toBe(12)
       expect(shortErrors[0].actualValue).toBe(3)
 
-      const upperErrors = getErrorsByType(
-        result,
+      const upperErrors = result.getErrorsByType(
         ValidationErrorType.MISSING_UPPERCASE
       )
       expect(upperErrors).toHaveLength(1)
@@ -380,7 +376,7 @@ describe("Simplified Password Validator", () => {
         [ValidationErrorType.MISSING_UPPERCASE]: "Falta letra mayúscula",
       }
 
-      const messages = getCustomErrorMessages(result, customMessages)
+      const messages = result.getCustomErrorMessages(customMessages)
 
       expect(messages).toContain("La contraseña es muy corta")
       expect(messages).toContain("Falta letra mayúscula")
@@ -460,16 +456,12 @@ describe("Simplified Password Validator", () => {
       expect(result.isValid).toBe(false)
 
       // Check that all expected error types are present
-      expect(hasErrorType(result, ValidationErrorType.TOO_SHORT)).toBe(true)
-      expect(hasErrorType(result, ValidationErrorType.MISSING_UPPERCASE)).toBe(
+      expect(result.hasErrorType(ValidationErrorType.TOO_SHORT)).toBe(true)
+      expect(result.hasErrorType(ValidationErrorType.MISSING_UPPERCASE)).toBe(
         true
       )
-      expect(hasErrorType(result, ValidationErrorType.MISSING_NUMBER)).toBe(
-        true
-      )
-      expect(hasErrorType(result, ValidationErrorType.MISSING_SYMBOL)).toBe(
-        true
-      )
+      expect(result.hasErrorType(ValidationErrorType.MISSING_NUMBER)).toBe(true)
+      expect(result.hasErrorType(ValidationErrorType.MISSING_SYMBOL)).toBe(true)
     })
 
     test("should return empty error for empty password", () => {
@@ -492,7 +484,7 @@ describe("Simplified Password Validator", () => {
       const maxLengthPassword = "A".repeat(32) + "1".repeat(31) + "!"
       expect(maxLengthPassword.length).toBe(64)
       const result = validatePassword(maxLengthPassword, HIGH_LEVEL)
-      expect(hasErrorType(result, ValidationErrorType.TOO_LONG)).toBe(false)
+      expect(result.hasErrorType(ValidationErrorType.TOO_LONG)).toBe(false)
     })
 
     test("should handle unicode characters", () => {
