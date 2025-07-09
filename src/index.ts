@@ -33,6 +33,11 @@ export {
   RutValidationResult,
 } from "./validate-chilean-rut"
 
+// Two-Factor Authentication exports
+export {
+  generateMinutelyTwoFactor,
+} from "./two-factor-generator/two-factor-generator"
+
 // Package info
 export const version = "0.3.0"
 export const author = "Bennu"
@@ -41,4 +46,5 @@ export const license = "MIT"
 export const validators = {
   rut: "Chilean RUT (Rol Único Tributario) validation",
   password: "Password strength validation with built-in utilities and typed error system",
+  twoFactor: "Time-based two-factor authentication code generation",
 } as const
