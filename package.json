@@ -1,7 +1,7 @@
 {
   "name": "@bennu-cl/commons-js",
-  "version": "0.0.1",
-  "description": "A TypeScript validator for Chilean RUT (Rol Único Tributario) numbers",
+  "version": "0.1.0",
+  "description": "Common utilities for JavaScript/TypeScript projects including Chilean RUT validation and two-factor authentication",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -16,7 +16,11 @@
     "validation",
     "chilean",
     "identity",
-    "typescript"
+    "typescript",
+    "two-factor",
+    "2fa",
+    "authentication",
+    "time-based"
   ],
   "author": "@bennu-cl/jomendev",
   "license": "MIT",
