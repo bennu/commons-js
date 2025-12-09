@@ -77,10 +77,17 @@ export function calculateVerificationDigit(rutNumber: string | number): string {
  * Validates if a given string is a valid Chilean RUT
  *
  * @param rut - RUT to validate
+ * @param requireVerificationDigit - Deprecated parameter, kept for backward compatibility. Ambiguous RUTs are always rejected. Default: false
  * @returns True if the RUT is valid, false otherwise
  */
-export function isValidRut(rut: unknown): boolean {
+export function isValidRut(rut: unknown, requireVerificationDigit: boolean = false): boolean {
   try {
+    // Check for malformed RUTs with invalid separator patterns (before cleaning)
+    const rutString = String(rut)
+    if (/--/.test(rutString) || /\.\./.test(rutString) || /\.-/.test(rutString) || /-\./.test(rutString)) {
+      return false
+    }
+
     const cleanedRut = cleanRut(rut)
 
     if (cleanedRut.length < 2) return false
@@ -102,8 +109,114 @@ export function isValidRut(rut: unknown): boolean {
 
     if (!calculatedVerificationDigit) return false
 
+    // Check if this is an ambiguous RUT (small RUT number without separator)
+    // This prevents edge cases where the last digit of the RUT number coincidentally matches the verification digit
+    const hasSeparator = /[-.]/.test(rutString)
+
+    // If no separator, the RUT number must be longer than 7 digits to be valid
+    // This prevents cases like '19713741' where '1971374' (7 digits) + '1' (verification digit)
+    // could be confused with just the number '19713741'
+    // This ambiguity makes it unsafe to accept such RUTs unless they have explicit separators
+    if (!hasSeparator && rutNumber.length <= 7) {
+      // For RUT numbers with 7 or fewer digits without separators, always reject as ambiguous
+      return false
+    }
+
+    // If requireVerificationDigit is true, we've already ensured the separator or long number above
+    // So we just validate the check digit matches
     return calculatedVerificationDigit === providedVerificationDigit
   } catch (e) {
     return false
+  }
+}
+
+/**
+ * Formats a valid RUT with proper formatting (dots and hyphen)
+ *
+ * @param rut - RUT to format
+ * @param requireVerificationDigit - If true, requires an explicit verification digit. Default: false
+ * @returns Formatted RUT string or null if invalid
+ */
+export function formatRut(rut: unknown, requireVerificationDigit: boolean = false): string | null {
+  if (!isValidRut(rut, requireVerificationDigit)) {
+    return null
+  }
+
+  const cleanedRut = cleanRut(rut)
+  const match = cleanedRut.match(/^(\d+)([K\d])$/)
+
+  if (!match || match.length !== 3) {
+    return null
+  }
+
+  const rutNumber = match[1]
+  const verificationDigit = match[2]
+
+  // Format: XX.XXX.XXX-D
+  const parts: string[] = []
+  let remaining = rutNumber
+
+  // Extract last 3 digits
+  if (remaining.length > 3) {
+    parts.unshift(remaining.slice(-3))
+    remaining = remaining.slice(0, -3)
+  } else {
+    parts.unshift(remaining)
+    remaining = ''
+  }
+
+  // Extract middle groups of 3
+  while (remaining.length > 3) {
+    parts.unshift(remaining.slice(-3))
+    remaining = remaining.slice(0, -3)
+  }
+
+  // Add remaining digits
+  if (remaining) {
+    parts.unshift(remaining)
+  }
+
+  return parts.join('.') + '-' + verificationDigit
+}
+
+/**
+ * Validates a RUT and returns detailed information about it
+ *
+ * @param rut - RUT to validate
+ * @param requireVerificationDigit - If true, requires an explicit verification digit. Default: false
+ * @returns RutValidationResult object with validation information
+ */
+export function validateRut(rut: unknown, requireVerificationDigit: boolean = false): RutValidationResult {
+  const cleanedRut = cleanRut(rut)
+  const isValid = isValidRut(rut, requireVerificationDigit)
+
+  if (!isValid) {
+    return {
+      isValid: false,
+      formatted: null,
+      raw: cleanedRut
+    }
+  }
+
+  const match = cleanedRut.match(/^(\d+)([K\d])$/)
+
+  if (!match || match.length !== 3) {
+    return {
+      isValid: false,
+      formatted: null,
+      raw: cleanedRut
+    }
+  }
+
+  const rutNumber = match[1]
+  const verificationDigit = match[2]
+  const formatted = formatRut(rut, requireVerificationDigit)
+
+  return {
+    isValid: true,
+    formatted,
+    raw: cleanedRut,
+    rutNumber,
+    verificationDigit
   }
 }

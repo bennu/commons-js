@@ -16,7 +16,11 @@
     "validation",
     "chilean",
     "identity",
-    "typescript"
+    "typescript",
+    "two-factor",
+    "2fa",
+    "authentication",
+    "time-based"
   ],
   "author": "@bennu-cl/jomendev",
   "license": "MIT",
