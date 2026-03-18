@@ -1,6 +1,6 @@
 {
   "name": "@bennu-cl/commons-js",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "A TypeScript validator for Chilean RUT (Rol Único Tributario) numbers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
